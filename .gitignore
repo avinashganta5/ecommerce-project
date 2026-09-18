@@ -1,8 +1,3 @@
-application\api-gateway\node_modules
-application\api-gateway\.env
-application\order-service\node_modules
-application\order-service\.env
-application\product-service\node_modules
-application\product-service\.env
-application\user-service\node_modules
-application\user-service\.env
+**/node_modules/
+**/.env
+/application/api-gateway/code
