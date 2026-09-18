@@ -1,0 +1,191 @@
+services:
+
+  # =========================
+  # MYSQL
+  # =========================
+
+  mysql:
+    image: mysql:8.0
+    container_name: shopsphere-mysql
+
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: shopsphere123
+      MYSQL_DATABASE: shopsphere
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-uroot",
+          "-pshopsphere123"
+        ]
+
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - shopsphere-network
+
+
+  # =========================
+  # USER SERVICE
+  # =========================
+
+  user-service:
+    build:
+      context: ./user-service
+
+    container_name: shopsphere-user
+
+    restart: unless-stopped
+
+    environment:
+      PORT: 3001
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: shopsphere123
+      DB_NAME: shopsphere
+
+    ports:
+      - "3001:3001"
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    networks:
+      - shopsphere-network
+
+
+  # =========================
+  # PRODUCT SERVICE
+  # =========================
+
+  product-service:
+    build:
+      context: ./product-service
+
+    container_name: shopsphere-product
+
+    restart: unless-stopped
+
+    environment:
+      PORT: 3002
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: shopsphere123
+      DB_NAME: shopsphere
+
+    ports:
+      - "3002:3002"
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    networks:
+      - shopsphere-network
+
+
+  # =========================
+  # ORDER SERVICE
+  # =========================
+
+  order-service:
+    build:
+      context: ./order-service
+
+    container_name: shopsphere-order
+
+    restart: unless-stopped
+
+    environment:
+      PORT: 3003
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: shopsphere123
+      DB_NAME: shopsphere
+
+    ports:
+      - "3003:3003"
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    networks:
+      - shopsphere-network
+
+
+  # =========================
+  # API GATEWAY
+  # =========================
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+
+    container_name: shopsphere-gateway
+
+    restart: unless-stopped
+
+    environment:
+      PORT: 3000
+
+      USER_SERVICE_URL: http://user-service:3001
+
+      PRODUCT_SERVICE_URL: http://product-service:3002
+
+      ORDER_SERVICE_URL: http://order-service:3003
+
+    ports:
+      - "3000:3000"
+
+    depends_on:
+      user-service:
+        condition: service_started
+
+      product-service:
+        condition: service_started
+
+      order-service:
+        condition: service_started
+
+    networks:
+      - shopsphere-network
+
+
+# =========================
+# VOLUME
+# =========================
+
+volumes:
+
+  mysql_data:
+
+
+# =========================
+# NETWORK
+# =========================
+
+networks:
+
+  shopsphere-network:
+    driver: bridge
